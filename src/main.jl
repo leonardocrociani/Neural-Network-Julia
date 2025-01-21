@@ -11,3 +11,6 @@ println(x == y) # should be false
 
 z = x # reference
 println(x == z) # should be true
+
+a = x+y
+println(a, " => data: $(a.data), grad: $(a.grad), op: $(a.op)")
