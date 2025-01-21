@@ -1,5 +1,6 @@
 module DataTypes
-
+export Value
+export Operation
 
 
 mutable struct Value{opType} <: Number  # Value type is a subtype of Number
@@ -17,8 +18,7 @@ end
 # Value from definition:
 Value(x::Number) = Value(Float64(x), 0.0, nothing) # grad is 0.0 for now, op is nothing for a definition
 
-export Value
-export Operation
+
 
 # for printing the values in a nice way:
 import Base.show
@@ -38,6 +38,8 @@ function +(a::Value, b::Value)
 	# we store the addition as an Operation of FuncType +, ArgType is the pair of values (a, b)
 	return Value(a.data + b.data, 0.0, Operation(+, (a, b)))
 end
+
+backprop!(val::Value{Nothing}) = nothing
 
 # backprop function for the case in which the val parameter comes from an addition operation
 function backprop!(val::Value{Operation{FunType, ArgTypes}}) where {FunType<:typeof(+), ArgTypes}

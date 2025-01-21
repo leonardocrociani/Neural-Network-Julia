@@ -1,7 +1,6 @@
 # Ensure your module is included correctly
 include("./lib/DataTypes.jl")
 
-# Import the module to bring the `Value` and `Operation` types into scope
 using .DataTypes
 
 
