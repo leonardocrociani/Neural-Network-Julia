@@ -1,36 +1,27 @@
 # Ensure your module is included correctly
-include("./lib/DataTypes.jl")
+include("lib/DataTypes.jl")
 
 using .DataTypes
 
+m = Value(2)
+x = Value(3)
+q = Value(7)
+s = Value(2)
 
-x = Value(4)
-y = Value(4)
+s = inv(s) # 1/s
 
-println(x, " => data: $(x.data), grad: $(x.grad), op: $(x.op)")
-println(y)
+r = Value(10)
 
-println(x == y) # should be false
+y = m / r * x - q + s
 
-z = x # reference
-println(x == z) # should be true
+println(y * 4)
 
-a = x + y
-println(a, " => data: $(a.data), grad: $(a.grad), op: $(a.op)") # Should show addition operation
+backward(y)
 
-# backpropagation testing
+println(m.grad) 
 
-x = Value(2)
-y = Value(3)
+println(q.grad)
 
-a = Value(1)
-b = Value(4)
+y = Value(2)
 
-w = x + y
-z = a + b
-
-c = w + z
-
-backward(c)
-
-println(x.grad, y.grad, a.grad, b.grad) # should be 1.0 1.0 1.0 1.0
+println(-y)
