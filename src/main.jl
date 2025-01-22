@@ -1,27 +1,10 @@
 # Ensure your module is included correctly
-include("lib/DataTypes.jl")
+include("lib/Tensor.jl")
 
-using .DataTypes
+using .Tensors
 
-m = Value(2)
-x = Value(3)
-q = Value(7)
-s = Value(2)
+x = [0.0, 42.0, 5.0]
+println(size(x))
 
-s = inv(s) # 1/s
-
-r = Value(10)
-
-y = m / r * x - q + s
-
-println(y * 4)
-
-backward(y)
-
-println(m.grad) 
-
-println(q.grad)
-
-y = Value(2)
-
-println(-y)
+x = Tensor(x)
+println(size(x.data))
