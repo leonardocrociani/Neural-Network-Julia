@@ -3,6 +3,7 @@ module Values
 	export Value
 	export Operation
 	export backward
+	export tanh
 
 	# ================================ Basic value type ================================ #
 

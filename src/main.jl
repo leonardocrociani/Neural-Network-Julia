@@ -17,3 +17,19 @@ x[2,2] = 5.0
 
 println(x)  
 println(x[2,2,]) # expected output: 5.0
+
+a = Tensor([1.2, -5.4, 10.3, -2.0])
+b = relu(a)
+
+println(b)
+
+backward(b)
+
+println(a.grad)
+println(b.grad)
+
+
+# softmax_crossentropy test
+output_layer = Tensor(rand(3, 3)) # Matrix 3x3 with 3 inputs and 3 outputs
+y_true = [0 0 1; 0 1 0; 1 0 1]
+println(softmax_crossentropy(output_layer, y_true))

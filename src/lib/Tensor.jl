@@ -3,6 +3,8 @@ module Tensors
 	export Tensor
 	export Operation
 	export backward
+	export relu
+	export softmax_crossentropy
 
 	# ================================ Basic Tensor type ================================ #
 
@@ -48,13 +50,11 @@ module Tensors
 		return a === b
 	end
 
-	## ================================ Tenfsor type operations ================================ ##
+	## ================================ Tensor type operations ================================ ##
 
 	Base.size(x::Tensor) = size(x.data) # print the size of a Tensor by calling the size function on it
 	Base.getindex(x::Tensor, i...) = getindex(x.data, i...) # needed for indexing so instead of writing x.data[3,4] we can omit .data to access the values
 	Base.setindex!(x::Tensor, v, i...) = setindex!(x.data, v, i...) # same as before but for setting values
-
-
 
 	import Base.* # overriding the * operator so that it returns the product of two tensors as a new tensor ( matrix multiplication )
 	function *(a::Tensor, b::Tensor)
@@ -62,9 +62,34 @@ module Tensors
 		return Tensor(out, zeros(Float64, size(out)), Operation(*, (a, b)))
 	end
 
+	# relu
+	function relu(a::Tensor)
+		# . is used for element whise opereration in arrays. => .* is dot product, * is product
+		return Tensor(max.(0,a.data), zeros(Float64, size(a.data)), Operation(relu, (a,)))
+	end
 
 
+	# softmax crossentropy
+	# y_true is the one hot encoded true labels!
+	function softmax_crossentropy(a::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}}; grad::Bool = false) # grad will be used later 
+		# softmax
+		exp_values = exp.(a.data .- maximum(a.data, dims=2))
+		probs = exp_values ./ sum(exp_values, dims=2)
+		probs_clipped = clamp.(probs, 1e-7, 1-1e-7)
 
+		# the array of the probability of the correct answer for each sample
+		correct_confidences = sum(probs_clipped .* y_true, dims=2)
+		
+		# negative log likelyhood
+		sample_losses = -log.(correct_confidences)
+
+		out = [sum(sample_losses) / length(sample_losses)]
+		out = reshape(out, (1, 1))
+
+		return Tensor(out, zeros(Float64, size(out)), Operation(softmax_crossentropy, (a,)))
+	end
+
+	# addition
 	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(+), ArgTypes}
 		# tensor = a + backprop
 		# backprop! = (tensor)
@@ -72,6 +97,11 @@ module Tensors
 
 		tensor.op.args[1].grad += tensor.grad * transpose(tensor.op.args[2].data) 
 		tensor.op.args[2].grad += transpose(tensor.op.args[1].data) * tensor.grad
+	end
+
+	# relu:
+	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(relu), ArgTypes}
+		tensor.op.args[1].grad += (tensor.op.args[1].data .> 0) .* tensor.grad
 	end
 
 
@@ -122,16 +152,16 @@ module Tensors
 		# update a.grad b.grad, a and b are 2-dimensional a
 		# Here we basically do a reverse broadcast based on the size of the gradient 
 		
-		if size(tensor.grad) == size(tensor.op.args[1].data):
-			tensor.op.args[1].grad += ones(size(tensor.op.args[1].data)) * tensor.grad
-		else:
-			tensor.op.args[1].grad += ones(size(tensor.op.args[1].grad)) * sum(tensor.grad, dims=1) # Reverse broadcast
+		if size(tensor.grad) == size(tensor.op.args[1].data)
+			tensor.op.args[1].grad += ones(size(tensor.op.args[1].data)) .* tensor.grad
+		else
+			tensor.op.args[1].grad += ones(size(tensor.op.args[1].grad)) .* sum(tensor.grad, dims=1) # Reverse broadcast
 		end
 		
-		if size(tensor.grad) == size(tensor.op.args[2].data):
-			tensor.op.args[2].grad += ones(size(tensor.op.args[2].data)) * tensor.grad
-		else:
-			tensor.op.args[2].grad += ones(size(tensor.op.args[2].grad)) * sum(tensor.grad, dims=1) # Reverse broadcast
+		if size(tensor.grad) == size(tensor.op.args[2].data)
+			tensor.op.args[2].grad += ones(size(tensor.op.args[2].data)) .* tensor.grad
+		else
+			tensor.op.args[2].grad += ones(size(tensor.op.args[2].grad)) .* sum(tensor.grad, dims=1) # Reverse broadcast
 		end
 
 
