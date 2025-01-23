@@ -3,33 +3,24 @@ include("lib/Tensor.jl")
 
 using .Tensors
 
-x = [0.0, 42.0, 5.0]
-println(size(x)) # expected output: (3,)
+inputs = Tensor(rand(2, 3))
+y_true = [0 0 1 0 0; 0 1 0 0 0]
 
-x = Tensor(x)
-println(size(x.data)) # expected output: (1, 3)
+weights_layer1 = Tensor(rand(3, 4))
+bias_layer1 = Tensor(ones(1, 4))
 
-x = Tensor([1.0 2.0 ; 3.0 4.0])
+weights_layer2 = Tensor(rand(4, 5))
+bias_layer2 = Tensor(ones(1, 5))
 
-println(size(x))
+layer1_output = relu(inputs * weights_layer1 + bias_layer1)
+layer2_output = layer1_output * weights_layer2 + bias_layer2
 
-x[2,2] = 5.0
+loss = softmax_crossentropy(layer2_output, y_true)
+println(loss)
+# println(layer2_output.grad)
+backward(loss)
+# println(layer2_output.grad)
 
-println(x)  
-println(x[2,2,]) # expected output: 5.0
-
-a = Tensor([1.2, -5.4, 10.3, -2.0])
-b = relu(a)
-
-println(b)
-
-backward(b)
-
-println(a.grad)
-println(b.grad)
-
-
-# softmax_crossentropy test
-output_layer = Tensor(rand(3, 3)) # Matrix 3x3 with 3 inputs and 3 outputs
-y_true = [0 0 1; 0 1 0; 1 0 1]
-println(softmax_crossentropy(output_layer, y_true))
+println(weights_layer1)
+println()
+println(weights_layer1.grad)
