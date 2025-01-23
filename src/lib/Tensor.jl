@@ -58,13 +58,13 @@ module Tensors
 
 	import Base.* # overriding the * operator so that it returns the product of two tensors as a new tensor ( matrix multiplication )
 	function *(a::Tensor, b::Tensor)
-		out = a.data * b.data,
+		out = a.data * b.data
 		return Tensor(out, zeros(Float64, size(out)), Operation(*, (a, b)))
 	end
 
 	# relu
 	function relu(a::Tensor)
-		# . is used for element whise opereration in arrays. => .* is dot product, * is product
+		# . is used for element-wise opereration in arrays. => .* is dot product, * is product
 		return Tensor(max.(0,a.data), zeros(Float64, size(a.data)), Operation(relu, (a,)))
 	end
 
@@ -73,8 +73,8 @@ module Tensors
 	# y_true is the one hot encoded true labels!
 	function softmax_crossentropy(a::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}}; grad::Bool = false) # grad will be used later 
 		# softmax
-		exp_values = exp.(a.data .- maximum(a.data, dims=2))
-		probs = exp_values ./ sum(exp_values, dims=2)
+		exp_values = exp.(a.data .- maximum(a.data, dims=2)) # we subtract to avoid float overflow
+		probs = exp_values ./ sum(exp_values, dims=2) # sum calculates row-wise sum
 		probs_clipped = clamp.(probs, 1e-7, 1-1e-7)
 
 		# the array of the probability of the correct answer for each sample
@@ -83,6 +83,7 @@ module Tensors
 		# negative log likelyhood
 		sample_losses = -log.(correct_confidences)
 
+		# we output the mean loss across the batch
 		out = [sum(sample_losses) / length(sample_losses)]
 		out = reshape(out, (1, 1))
 
