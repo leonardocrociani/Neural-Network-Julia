@@ -62,12 +62,20 @@ module Tensors
 		return Tensor(out, zeros(Float64, size(out)), Operation(*, (a, b)))
 	end
 
+	import Base.+ # overriding the + operator so that it returns the sum of two tensors as a new tensor
+	function +(a::Tensor, b::Tensor)
+		out = a.data .+ b.data
+		# Brocasting happens automatically in case of row-vector
+		# data is simply the sum of the data inside the pair of tensors
+		# we are using 0.0 as a placeholder value for the gradient
+		return Tensor(out, zeros(Float64, size(out)), Operation(+, (a, b)))
+	end
+
 	# relu
 	function relu(a::Tensor)
 		# . is used for element-wise opereration in arrays. => .* is dot product, * is product
 		return Tensor(max.(0,a.data), zeros(Float64, size(a.data)), Operation(relu, (a,)))
 	end
-
 
 	# softmax crossentropy
 	# y_true is the one hot encoded true labels!
@@ -85,13 +93,26 @@ module Tensors
 
 		# we output the mean loss across the batch
 		out = [sum(sample_losses) / length(sample_losses)]
+
+		if grad
+			samples = size(probs, 1)
+			a.grad = copy(probs)
+			argmax_y_true = argmax(y_true, dims=2)
+
+			for sample_index in 1:samples
+				a.grad[sample_index, argmax_y_true[sample_index][2]] -= 1
+			end
+
+			a.grad = a.grad ./ samples
+		end
+
 		out = reshape(out, (1, 1))
 
 		return Tensor(out, zeros(Float64, size(out)), Operation(softmax_crossentropy, (a,)))
 	end
 
-	# addition
-	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(+), ArgTypes}
+	# multiplication
+	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(*), ArgTypes}
 		# tensor = a + backprop
 		# backprop! = (tensor)
 		# udpate a.gard, b.grad
@@ -100,9 +121,32 @@ module Tensors
 		tensor.op.args[2].grad += transpose(tensor.op.args[1].data) * tensor.grad
 	end
 
+	# backprop function for the case in which the val parameter comes from a sum
+	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(+), ArgTypes}
+		# update a.grad b.grad, a and b are 2-dimensional a
+		# Here we basically do a reverse broadcast based on the size of the gradient 
+		
+		if size(tensor.grad) == size(tensor.op.args[1].data)
+			tensor.op.args[1].grad += ones(size(tensor.op.args[1].data)) .* tensor.grad
+		else
+			tensor.op.args[1].grad += ones(size(tensor.op.args[1].grad)) .* sum(tensor.grad, dims=1) # Reverse broadcast
+		end
+		
+		if size(tensor.grad) == size(tensor.op.args[2].data)
+			tensor.op.args[2].grad += ones(size(tensor.op.args[2].data)) .* tensor.grad
+		else
+			tensor.op.args[2].grad += ones(size(tensor.op.args[2].grad)) .* sum(tensor.grad, dims=1) # Reverse broadcast
+		end
+	end
+
 	# relu:
 	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(relu), ArgTypes}
 		tensor.op.args[1].grad += (tensor.op.args[1].data .> 0) .* tensor.grad
+	end
+
+	# backprop in case of `softmax_crossentropy`
+	function backprop!(_tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(softmax_crossentropy), ArgTypes}
+		# it should do nothing, we have implemented the backprop step inside the `softmax_crossentropy` function
 	end
 
 
@@ -134,40 +178,5 @@ module Tensors
 		end
 
 	end
-
-
-	import Base.+ # overriding the + operator so that it returns the sum of two tensors as a new tensor
-	function +(a::Tensor, b::Tensor)
-		out = a.data + b.data
-		# Brocasting happens automatically in case of row-vector
-		# data is simply the sum of the data inside the pair of tensors
-		# we are using 0.0 as a placeholder value for the gradient
-		return Tensor(out, zeros(Float64, size(out)), Operation(+, (a, b)))
-	end
-
-
-	# backprop function for the case in which the val parameter comes from an addition operation
-	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(+), ArgTypes}
-		# tensor = a + b, our aim is to update:
-		# backprop(tensor)
-		# update a.grad b.grad, a and b are 2-dimensional a
-		# Here we basically do a reverse broadcast based on the size of the gradient 
-		
-		if size(tensor.grad) == size(tensor.op.args[1].data)
-			tensor.op.args[1].grad += ones(size(tensor.op.args[1].data)) .* tensor.grad
-		else
-			tensor.op.args[1].grad += ones(size(tensor.op.args[1].grad)) .* sum(tensor.grad, dims=1) # Reverse broadcast
-		end
-		
-		if size(tensor.grad) == size(tensor.op.args[2].data)
-			tensor.op.args[2].grad += ones(size(tensor.op.args[2].data)) .* tensor.grad
-		else
-			tensor.op.args[2].grad += ones(size(tensor.op.args[2].grad)) .* sum(tensor.grad, dims=1) # Reverse broadcast
-		end
-
-
-	end
-
-
 
 end # this is the END of the module, should be the last instruction!
