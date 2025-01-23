@@ -155,4 +155,7 @@ module Values
 	# adding support for operation Value + number
 	Base.promote_rule(::Type{<:Value}, ::Type{T}) where {T<:Number} = Value
 
+
+	
+
 end # this is the END of the module, should be the last instruction!
