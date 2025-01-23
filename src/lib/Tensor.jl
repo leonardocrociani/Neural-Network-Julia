@@ -167,7 +167,7 @@ module Tensors
 				push!(topo, v)
 			end
 
-			return topo
+			returngi topo
 		end
 		
 		topo = build_topo(a)
@@ -179,4 +179,6 @@ module Tensors
 
 	end
 
+
 end # this is the END of the module, should be the last instruction!
+
