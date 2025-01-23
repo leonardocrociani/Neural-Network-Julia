@@ -135,10 +135,10 @@ for epoch in 1:epochs
         biases2.data = biases2.data - biases2.grad .* lr;
         
         
-        if run % 10== 0
-            println("Epoch: run, loss: $(round(loss.data[1], digits=3))")
+        if run % 10 == 0
+            println("Epoch: ", epoch, " Loss: ", loss.data)
         end
-        
+
         global run += 1
     end
 end
