@@ -1,8 +1,8 @@
 # Ensure your module is included correctly
 include("lib/Tensor.jl")
-using Pkg
 
 using .Tensors
+using Pkg
 
 inputs = Tensor(rand(2, 3))
 y_true = [0 0 1 0 0; 0 1 0 0 0]
@@ -13,7 +13,7 @@ bias_layer1 = Tensor(ones(1, 4))
 weights_layer2 = Tensor(rand(4, 5))
 bias_layer2 = Tensor(ones(1, 5))
 
-layer1_output = relu(inputs * weights_layer1 + bias_layer1)
+layer1_output = tanh(inputs * weights_layer1 + bias_layer1)
 layer2_output = layer1_output * weights_layer2 + bias_layer2
 
 loss = softmax_crossentropy(layer2_output, y_true, grad=true)
@@ -28,10 +28,9 @@ println(weights_layer1.grad)
 
 ## Solving MNIST
 
-
 Pkg.add("Images")
 using Images
-img_path = "../../dataset/trainingSet/trainingSet/0/img_1.jpg"
+img_path = "../dataset/trainingSet/trainingSet/0/img_1.jpg"
 img = load(img_path)
 img_mat = Float64.(img)
 img_flattened = reshape(img_mat,:)
@@ -39,7 +38,7 @@ println(size(img_flattened))
 # we need to this for each image
 
 # reading images 
-base_path = "../../dataset/trainingSet/trainingSet"
+base_path = "../dataset/trainingSet/trainingSet"
 
 X = [] # image pixel data
 y = [] # digit label
@@ -118,7 +117,7 @@ for epoch in 1:epochs
         biases2.grad .= 0
 
         # layer 1 forward pass
-        layer1_out = relu(batch_X * weights1 + biases1);
+        layer1_out = tanh(batch_X * weights1 + biases1);
 
         # layer 2 forward pass
         layer2_out = layer1_out * weights2 + biases2

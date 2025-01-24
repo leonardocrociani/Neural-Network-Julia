@@ -1,10 +1,12 @@
 module Tensors
 
+	using Statistics
+
 	export Tensor
 	export Operation
 	export backward
-	export relu
-	export softmax_crossentropy
+	export relu, tanh # funzioni di attivazione
+	export softmax_crossentropy, mse, mean_euclidean_error, rmse # losses
 
 	# ================================ Basic Tensor type ================================ #
 
@@ -77,6 +79,15 @@ module Tensors
 		return Tensor(max.(0,a.data), zeros(Float64, size(a.data)), Operation(relu, (a,)))
 	end
 
+	# tanh function
+	import Base.tanh
+	function tanh(a::Tensor)
+		# Calcolo della funzione tanh
+		out_data = tanh.(a.data)
+		# Creazione di un nuovo Tensor
+		return Tensor(out_data, zeros(Float64, size(out_data)), Operation(tanh, (a,)))
+	end
+
 	# softmax crossentropy
 	# y_true is the one hot encoded true labels!
 	function softmax_crossentropy(a::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}}; grad::Bool = false) # grad will be used later 
@@ -109,6 +120,43 @@ module Tensors
 		out = reshape(out, (1, 1))
 
 		return Tensor(out, zeros(Float64, size(out)), Operation(softmax_crossentropy, (a,)))
+	end
+
+	# mean squared error
+	function mse(y_pred::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}}; grad::Bool=false)
+		loss = mean((y_pred.data .- y_true) .^ 2)
+		out = [loss]
+		if grad
+			y_pred.grad = 2 * (y_pred.data .- y_true) / length(y_pred.data)
+		end
+		out = reshape(out, (1, 1))
+		return Tensor(out, zeros(Float64, size(out)), Operation(mse, (y_pred, y_true)))
+	end
+
+	# mean euclidean error
+	function mean_euclidean_error(y_pred::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}}; grad::Bool=false)
+		loss = mean(sqrt.(sum((y_pred.data .- y_true) .^ 2, dims=2)))
+		out = [loss]
+		if grad
+			diff = y_pred.data .- y_true
+			norms = sqrt.(sum(diff .^ 2, dims=2))
+			y_pred.grad = diff ./ (norms .+ 1e-7) ./ size(y_pred.data, 1)  # Evita divisione per zero
+		end
+		out = reshape(out, (1, 1))
+		return Tensor(out, zeros(Float64, size(out)), Operation(mean_euclidean_error, (y_pred, y_true)))
+	end
+
+	# root mean squared error
+	function rmse(y_pred::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}}; grad::Bool=false)
+		loss = sqrt(mean((y_pred.data .- y_true) .^ 2))
+		out = [loss]
+		if grad
+			diff = y_pred.data .- y_true
+			loss = sqrt(mean(diff .^ 2))
+			y_pred.grad = diff ./ (loss .+ 1e-7) ./ length(y_pred.data)  # Evita divisione per zero
+		end
+		out = reshape(out, (1, 1))
+		return Tensor(out, zeros(Float64, size(out)), Operation(rmse, (y_pred, y_true)))
 	end
 
 	# multiplication
@@ -144,9 +192,35 @@ module Tensors
 		tensor.op.args[1].grad += (tensor.op.args[1].data .> 0) .* tensor.grad
 	end
 
+	# tanh:
+	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(tanh), ArgTypes}
+		# Derivata di tanh: 1 - tanh^2(x)
+		input_tensor = tensor.op.args[1]
+		input_tensor.grad += (1 .- tensor.data .^ 2) .* tensor.grad
+	end
+
 	# backprop in case of `softmax_crossentropy`
 	function backprop!(_tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(softmax_crossentropy), ArgTypes}
 		# it should do nothing, we have implemented the backprop step inside the `softmax_crossentropy` function
+	end
+
+	# backprop in case of `mse`
+	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(mse), ArgTypes}
+		# it should do nothing, we have implemented the backprop step inside the mse function
+		# tensor.op.args[1].grad += 2 * (tensor.op.args[1].data .- tensor.op.args[2]) / length(tensor.op.args[1].data)
+	end
+
+	# backprop in case of `mean_euclidean_error`
+	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(mean_euclidean_error), ArgTypes}
+		# it should do nothing, we have implemented the backprop step inside the mean_euclidean_error function
+		# tensor.op.args[1].grad += (tensor.op.args[1].data .- tensor.op.args[2]) ./ length(tensor.op.args[1].data)
+	end
+
+	# backprop in case of `rmse`
+	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(rmse), ArgTypes}
+		# it should do nothing, we have implemented the backprop step inside the rmse function
+		# loss = sqrt(mean((tensor.op.args[1].data .- tensor.op.args[2]) .^ 2))
+		# tensor.op.args[1].grad += (tensor.op.args[1].data .- tensor.op.args[2]) / (length(tensor.op.args[1].data) * loss)
 	end
 
 
