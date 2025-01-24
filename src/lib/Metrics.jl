@@ -13,7 +13,7 @@ module Metrics
         y_pred = vec(y_pred.data)
 
         correct = 0
-        for i in 1:length(y_true)
+        for i in eachindex(y_true)
             correct += y_pred[i] == y_true[i]
         end
 
@@ -29,7 +29,7 @@ module Metrics
 
         true_positives = 0
         false_positives = 0
-        for i in 1:length(y_true)
+        for i in eachindex(y_true)
             true_positives += y_pred[i] == y_true[i] && y_pred[i] == 1
             false_positives += y_pred[i] != y_true[i] && y_pred[i] == 1
         end
@@ -51,7 +51,7 @@ module Metrics
 
         true_positives = 0
         false_negatives = 0
-        for i in 1:length(y_true)
+        for i in eachindex(y_true)
             true_positives += y_pred[i] == y_true[i] && y_pred[i] == 1
             false_negatives += y_pred[i] != y_true[i] && y_pred[i] == 0
         end
