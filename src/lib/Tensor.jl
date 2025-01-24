@@ -167,7 +167,7 @@ module Tensors
 				push!(topo, v)
 			end
 
-			returngi topo
+			return topo
 		end
 		
 		topo = build_topo(a)

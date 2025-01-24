@@ -123,7 +123,7 @@ for epoch in 1:epochs
         # layer 2 forward pass
         layer2_out = layer1_out * weights2 + biases2
 
-        loss = softmax_crossentropy(layer2_out, batch_y_one_hot)
+        loss = softmax_crossentropy(layer2_out, batch_y_one_hot, grad = true)
 
         backward(loss) ## full backward pass for the loss ( small change to every parametrs how does the loss change)
 
@@ -142,3 +142,27 @@ for epoch in 1:epochs
         global run += 1
     end
 end
+
+
+global correct = 0
+global total = 0
+for i in 1:length(y_test)
+    X_in = X_test[i:i,:] ## need to keep this (1,784), not (784,)
+    X_in = Tensor(X_in)
+    y_true = y_test[i]
+
+    layer1_out = relu(X_in * weights1 + biases1)
+    layer2_out = layer1_out * weights2 + biases2
+
+
+    pred_argmax = argmax(layer2_out.data, dims=2)[1][2]
+
+    if pred_argmax-1 == y_true # -1 because digits start at 0
+        global correct +=1
+    end
+    global total += 1
+
+end
+
+println("accuracy:")
+println(correct/total)
