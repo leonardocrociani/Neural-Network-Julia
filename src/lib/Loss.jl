@@ -20,13 +20,13 @@ module Losses
 	end
 
 	# Make the struct callable
-	function (wf::Loss)(x::Number, y::Number)
-		wf.func(x, y)
+	function (wf::Loss)(a::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}})
+		wf.func(a, y_true)
 	end
 
 	# softmax crossentropy
 	# y_true is the one hot encoded true labels!
-	function inner_softmax_crossentropy(a::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}}; grad::Bool = false) # grad will be used later 
+	function inner_softmax_crossentropy(a::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}})
 		# softmax
 		exp_values = exp.(a.data .- maximum(a.data, dims=2)) # we subtract to avoid float overflow
 		probs = exp_values ./ sum(exp_values, dims=2) # sum calculates row-wise sum
@@ -41,25 +41,21 @@ module Losses
 		# we output the mean loss across the batch
 		out = [sum(sample_losses) / length(sample_losses)]
 
-		if grad
-			samples = size(probs, 1)
-			a.grad = copy(probs)
-			argmax_y_true = argmax(y_true, dims=2)
-
-			for sample_index in 1:samples
-				a.grad[sample_index, argmax_y_true[sample_index][2]] -= 1
-			end
-
-			a.grad = a.grad ./ samples
+		# SIDE EFFECT: update gradient
+		samples = size(probs, 1)
+		a.grad = copy(probs)
+		argmax_y_true = argmax(y_true, dims=2)
+		for sample_index in 1:samples
+			a.grad[sample_index, argmax_y_true[sample_index][2]] -= 1
 		end
+		a.grad = a.grad ./ samples
 
 		out = reshape(out, (1, 1))
-
 		return Tensor(out, zeros(Float64, size(out)), Operation(softmax_crossentropy, (a,)))
 	end
 
 	function softmax_crossentropy()
-		return Loss((a, y_true, grad) -> inner_softmax_crossentropy)
+		return Loss(inner_softmax_crossentropy)
 	end
 
 	# backprop in case of `softmax_crossentropy`
@@ -69,18 +65,18 @@ module Losses
 
 
 	# mean squared error
-	function inner_mse(y_pred::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}}; grad::Bool=false)
+	function inner_mse(y_pred::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}})
 		loss = mean((y_pred.data .- y_true) .^ 2)
 		out = [loss]
-		if grad
-			y_pred.grad = 2 * (y_pred.data .- y_true) / length(y_pred.data)
-		end
+
+		y_pred.grad = 2 * (y_pred.data .- y_true) / length(y_pred.data)
+
 		out = reshape(out, (1, 1))
 		return Tensor(out, zeros(Float64, size(out)), Operation(mse, (y_pred, y_true)))
 	end
 
 	function mse()
-		return Loss((a, y_true, grad) -> inner_mse)
+		return Loss(inner_mse)
 	end
 
 	# backprop in case of `mse`
@@ -91,20 +87,20 @@ module Losses
 
 
 	# mean euclidean error
-	function inner_mean_euclidean_error(y_pred::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}}; grad::Bool=false)
+	function inner_mean_euclidean_error(y_pred::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}})
 		loss = mean(sqrt.(sum((y_pred.data .- y_true) .^ 2, dims=2)))
 		out = [loss]
-		if grad
-			diff = y_pred.data .- y_true
-			norms = sqrt.(sum(diff .^ 2, dims=2))
-			y_pred.grad = diff ./ (norms .+ 1e-7) ./ size(y_pred.data, 1)  # Evita divisione per zero
-		end
+
+		diff = y_pred.data .- y_true
+		norms = sqrt.(sum(diff .^ 2, dims=2))
+		y_pred.grad = diff ./ (norms .+ 1e-7) ./ size(y_pred.data, 1)  # Evita divisione per zero
+
 		out = reshape(out, (1, 1))
 		return Tensor(out, zeros(Float64, size(out)), Operation(mean_euclidean_error, (y_pred, y_true)))
 	end
 
 	function mean_euclidean_error()
-		return Loss((a, y_true, grad) -> mean_euclidean_error)
+		return Loss(mean_euclidean_error)
 	end
 
 	# backprop in case of `mean_euclidean_error`
@@ -115,20 +111,20 @@ module Losses
 
 
 	# root mean squared error
-	function inner_rmse(y_pred::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}}; grad::Bool=false)
+	function inner_rmse(y_pred::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}})
 		loss = sqrt(mean((y_pred.data .- y_true) .^ 2))
 		out = [loss]
-		if grad
-			diff = y_pred.data .- y_true
-			loss = sqrt(mean(diff .^ 2))
-			y_pred.grad = diff ./ (loss .+ 1e-7) ./ length(y_pred.data)  # Evita divisione per zero
-		end
+
+		diff = y_pred.data .- y_true
+		loss = sqrt(mean(diff .^ 2))
+		y_pred.grad = diff ./ (loss .+ 1e-7) ./ length(y_pred.data)  # Evita divisione per zero
+
 		out = reshape(out, (1, 1))
 		return Tensor(out, zeros(Float64, size(out)), Operation(rmse, (y_pred, y_true)))
 	end
 
 	function rmse()
-		return Loss((a, y_true, grad) -> inner_rmse)
+		return Loss(inner_rmse)
 	end
 
 	# backprop in case of `rmse`
