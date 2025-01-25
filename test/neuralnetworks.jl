@@ -2,6 +2,7 @@ include("../src/lib/Tensor.jl")
 include("../src/lib/Initializer.jl")
 include("../src/lib/Loss.jl")
 include("../src/lib/Activation.jl")
+include("../src/lib/Regularization.jl")
 include("../src/lib/NeuralNetwork.jl")
 
 using Test
@@ -13,16 +14,18 @@ using .Tensors
 using .Initializers
 using .Losses
 using .Activations
+using .Regularizations
 using .NeuralNetworks
 
 weight_init = random_initializer(42)
 bias_init = zeros_initializer()
 loss = softmax_crossentropy()
+regularization = momentum()
 activation_functions = [ tanh(), Activations.identity() ]
 
 nn = NeuralNetwork(
-	0.1,
-	0.01,
+	0.8,
+	0.5,
 	100,
 	3,
 	10,
@@ -30,7 +33,8 @@ nn = NeuralNetwork(
 	weight_init,
 	bias_init,
 	activation_functions,
-	loss
+	loss,
+	regularization
 )
 
 

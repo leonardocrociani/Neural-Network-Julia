@@ -4,6 +4,7 @@ module NeuralNetworks
 	using ..Initializers
 	using ..Losses
 	using ..Activations
+	using ..Regularizations
 
 	export NeuralNetwork
 	export train
@@ -18,21 +19,26 @@ module NeuralNetworks
 		biases::AbstractArray{Tensor, 1}
 		activation_functions::AbstractArray{Activation, 1}
 		loss::Loss
+		regularization::MomentumFunction
+		Δw_old::Vector{Matrix{Float64}}
 
 		function NeuralNetwork(η::Number , α::Number,
 				batch_sz::Number, epochs::Number, num_classes::Number,
 				layer_sizes::AbstractArray{<:Tuple{<:Number, <:Number}},
 				initialize_weights_function::Initializer, initialize_biases_function::Initializer,
-				activation_functions::AbstractArray{Activation, 1}, loss::Loss)
+				activation_functions::AbstractArray{Activation, 1}, loss::Loss,
+				regularization_function::MomentumFunction)
 			@assert size(activation_functions, 1) === size(layer_sizes, 1)
 			layers = Vector{Tensor}(undef, size(layer_sizes, 1))
+			old_layers = Vector{Matrix{Float64}}(undef, size(layer_sizes, 1))
 			biases = Vector{Tensor}(undef, size(layer_sizes, 1))
 			for index in eachindex(layer_sizes)
 				sz = layer_sizes[index]
 				layers[index] = Tensor(0.01 * initialize_weights_function(sz[1], sz[2]))
 				biases[index] = Tensor(0.01 * initialize_biases_function(1, sz[2]))
+				old_layers[index] = zeros(sz[1], sz[2])
 			end
-			new(η, α, batch_sz, epochs, num_classes, layers, biases, activation_functions, loss)
+			new(η, α, batch_sz, epochs, num_classes, layers, biases, activation_functions, loss, regularization_function, old_layers)
 		end
 	end
 
@@ -68,13 +74,7 @@ module NeuralNetworks
 					layer = nn.activation_functions[j](layer * nn.layers[j] + nn.biases[j])
 				end
 				loss = nn.loss(layer, Y_batch_encoded)
-
-				### TODO: This block should be inside the Regularization struct
-				Tensors.backward(loss)
-				for layer in nn.layers
-					layer.data = layer.data - layer.grad .* nn.η
-				end
-				###
+				nn.regularization(loss, nn.layers, nn.Δw_old, nn.η, nn.α)
 
 				if verbose && run % 10 == 0
 					println("[$(epoch)/$(nn.epochs)] Loss: $(loss.data[1])")
