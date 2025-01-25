@@ -5,8 +5,6 @@ module Tensors
 	export Tensor
 	export Operation
 	export backward
-	export relu, tanh # funzioni di attivazione
-	export softmax_crossentropy, mse, mean_euclidean_error, rmse # losses
 
 	# ================================ Basic Tensor type ================================ #
 
@@ -73,21 +71,6 @@ module Tensors
 		return Tensor(out, zeros(Float64, size(out)), Operation(+, (a, b)))
 	end
 
-	# relu
-	function relu(a::Tensor)
-		# . is used for element-wise opereration in arrays. => .* is dot product, * is product
-		return Tensor(max.(0,a.data), zeros(Float64, size(a.data)), Operation(relu, (a,)))
-	end
-
-	# tanh function
-	import Base.tanh
-	function tanh(a::Tensor)
-		# Calcolo della funzione tanh
-		out_data = tanh.(a.data)
-		# Creazione di un nuovo Tensor
-		return Tensor(out_data, zeros(Float64, size(out_data)), Operation(tanh, (a,)))
-	end
-
 	# multiplication
 	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(*), ArgTypes}
 		# tensor = a + backprop
@@ -115,19 +98,6 @@ module Tensors
 			tensor.op.args[2].grad += ones(size(tensor.op.args[2].grad)) .* sum(tensor.grad, dims=1) # Reverse broadcast
 		end
 	end
-
-	# relu:
-	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(relu), ArgTypes}
-		tensor.op.args[1].grad += (tensor.op.args[1].data .> 0) .* tensor.grad
-	end
-
-	# tanh:
-	function backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(tanh), ArgTypes}
-		# Derivata di tanh: 1 - tanh^2(x)
-		input_tensor = tensor.op.args[1]
-		input_tensor.grad += (1 .- tensor.data .^ 2) .* tensor.grad
-	end
-
 
 	function backward(a::Tensor)
 
