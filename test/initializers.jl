@@ -1,0 +1,7 @@
+include("../src/lib/Initializer.jl")
+
+using Test
+using .Initializers
+
+x = random_initializer(12)
+@test x(2, 3) == [0.32018269515620323 0.5501748910470424 0.3890321538110373; 0.938582363311554 0.9475566588373514 0.19961796743719895]
