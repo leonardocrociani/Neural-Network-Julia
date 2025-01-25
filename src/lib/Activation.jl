@@ -8,7 +8,7 @@ module Activations
 
 	export Activation
 	using ..Tensors
-	export tanh, relu # activation functions
+	export tanh, relu, identity # activation functions
 
 	mutable struct Activation <: Function
 		func::FunctionWrappers.FunctionWrapper{Tensor, Tuple{Tensor}}
@@ -34,7 +34,7 @@ module Activations
 	end
 
 	function Activations.tanh()
-		return Activation((tensor) -> inner_tanh)
+		return Activation(inner_tanh)
 	end
 
 	# tanh:
@@ -52,12 +52,25 @@ module Activations
 	end
 
 	function relu()
-		return Activation((tensor) -> relu)
+		return Activation(relu)
 	end
 
 	# relu:
 	function Tensors.backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(relu), ArgTypes}
 		tensor.op.args[1].grad += (tensor.op.args[1].data .> 0) .* tensor.grad
+	end
+
+	# identity
+	function inner_identity(tensor::Tensor)
+		return tensor
+	end
+
+	function Activations.identity()
+		return Activation(inner_identity)
+	end
+
+	# identity
+	function Tensors.backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(identity), ArgTypes}
 	end
 
 end
