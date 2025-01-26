@@ -1,9 +1,7 @@
 module Regularizations
 
-	using Pkg
 	using Random
 
-	Pkg.add("FunctionWrappers")
 	using FunctionWrappers
 
 	export MomentumFunction
