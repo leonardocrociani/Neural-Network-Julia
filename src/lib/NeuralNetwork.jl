@@ -50,38 +50,47 @@ module NeuralNetworks
 	end
 
 	function train(nn::NeuralNetwork, X_train::Matrix{<:Number}, Y_train::AbstractArray{<:Any};
-				verbose::Bool=false)
+		verbose::Bool=false)
 		run = 0
 		for epoch in 1:nn.epochs
-			for i in 1:nn.batch_sz:size(X_train, 1)
-				X_batch = Tensor(X_train[i:i+nn.batch_sz-1, :])
-				Y_batch = Y_train[i:i+nn.batch_sz-1]
+		for i in 1:nn.batch_sz:size(X_train, 1)
+			# Adjusted the batch range to avoid out-of-bounds errors
+			batch_end = min(i + nn.batch_sz - 1, size(X_train, 1))
+			X_batch = Tensor(X_train[i:batch_end, :])
+			Y_batch = Y_train[i:batch_end]
 
-				Y_batch_encoded = zeros(nn.batch_sz, nn.num_classes)
-				for batch_index in eachindex(1:nn.batch_sz)
-					Y_batch_encoded[batch_index, Int.(Y_batch)[batch_index] + 1] = 1
-				end
-
-				for layer in nn.layers
-					layer.grad .= 0
-				end
-				for bias in nn.biases
-					bias.grad .= 0
-				end
-
-				layer = nn.activation_functions[1](X_batch * nn.layers[1] + nn.biases[1])
-				for j in 2:size(nn.layers, 1)
-					layer = nn.activation_functions[j](layer * nn.layers[j] + nn.biases[j])
-				end
-				loss = nn.loss(layer, Y_batch_encoded)
-				nn.regularization(loss, nn.layers, nn.Δw_old, nn.η, nn.α)
-
-				if verbose && run % 10 == 0
-					println("[$(epoch)/$(nn.epochs)] Loss: $(loss.data[1])")
-				end
-				run += 1
-
+			# Adjust the size of Y_batch_encoded dynamically for the last batch
+			batch_size_actual = size(X_batch, 1)  # Actual batch size
+			Y_batch_encoded = zeros(batch_size_actual, nn.num_classes)
+			for batch_index in 1:batch_size_actual
+				Y_batch_encoded[batch_index, Int(Y_batch[batch_index]) + 1] = 1
 			end
+
+			# Reset gradients
+			for layer in nn.layers
+				layer.grad .= 0
+			end
+			for bias in nn.biases
+				bias.grad .= 0
+			end
+
+			# Forward pass
+			layer = nn.activation_functions[1](X_batch * nn.layers[1] + nn.biases[1])
+			for j in 2:size(nn.layers, 1)
+				layer = nn.activation_functions[j](layer * nn.layers[j] + nn.biases[j])
+			end
+
+			# Compute loss and perform backpropagation
+			loss = nn.loss(layer, Y_batch_encoded)
+			nn.regularization(loss, nn.layers, nn.Δw_old, nn.η, nn.α)
+
+			# Print verbose output
+			if verbose && run % 10 == 0
+				println("[$(epoch)/$(nn.epochs)] Loss: $(loss.data[1])")
+			end
+			run += 1
+		end
 		end
 	end
+
 end
