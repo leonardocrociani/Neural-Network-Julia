@@ -1,9 +1,7 @@
 module Losses
 
-	using Pkg
 	using Random
 
-	Pkg.add("FunctionWrappers")
 	using FunctionWrappers
 
 	export Loss

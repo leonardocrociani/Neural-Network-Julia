@@ -1,9 +1,7 @@
 module Initializers
 
-	using Pkg
 	using Random
 
-	Pkg.add("FunctionWrappers")
 	using FunctionWrappers
 
 	export Initializer
