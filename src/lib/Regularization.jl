@@ -42,8 +42,23 @@ module Regularizations
 		return MomentumFunction(inner_momentum)
 	end
 
-	function inner_momentum_tikhonov(loss::Tensor, layers::AbstractArray{Tensor, 1}, Δw_old::AbstractArray{Tensor, 1}, η::Number, α::Number)
+	function inner_momentum_tikhonov(loss::Tensor, layers::AbstractArray{Tensor, 1}, Δw_old::Vector{Matrix{Float64}}, η::Number, α::Number)
+		prev_layers = []
+		for i in eachindex(layers)
+			layer = layers[i]
+			push!(prev_layers, deepcopy(layer.data))
+			layer.data = layer.data + Δw_old[i] .* α
+		end
+		Tensors.backward(loss)
+		for i in eachindex(layers)
+			layer = layers[i]
+			Δw_new = (-η) .* layer.grad + α .* Δw_old[i]
+			Δw_old[i] = Δw_new
+			layer.data = prev_layers[i] + Δw_new
+		end
+		return nothing
 	end
+
 
 	function momentum_tikhonov()
 		return MomentumFunction(inner_momentum_tikhonov)

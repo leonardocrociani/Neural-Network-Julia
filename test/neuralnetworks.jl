@@ -20,12 +20,12 @@ using .NeuralNetworks
 weight_init = random_initializer(42)
 bias_init = zeros_initializer()
 loss = softmax_crossentropy()
-regularization = momentum()
+regularization = momentum_tikhonov()
 activation_functions = [ tanh(), Activations.identity() ]
 
 nn = NeuralNetwork(
-	0.8,
-	0.5,
+	0.3,
+	0.2,
 	100,
 	3,
 	10,
