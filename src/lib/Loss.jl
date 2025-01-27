@@ -1,12 +1,12 @@
 module Losses
 
 	using Random
-
+	using Statistics
 	using FunctionWrappers
 
 	export Loss
 	using ..Tensors
-	export softmax_crossentropy, mse, mean_euclidean_error, rmse # losses
+	export softmax_crossentropy, binary_crossentropy, mse, mean_euclidean_error, rmse # losses
 
 	mutable struct Loss <: Function
 		func::FunctionWrappers.FunctionWrapper{Tensor, Tuple{Tensor, Union{Array{Int, 2}, Array{Float64,2}}}}
@@ -130,6 +130,32 @@ module Losses
 		# it should do nothing, we have implemented the backprop step inside the rmse function
 		# loss = sqrt(mean((tensor.op.args[1].data .- tensor.op.args[2]) .^ 2))
 		# tensor.op.args[1].grad += (tensor.op.args[1].data .- tensor.op.args[2]) / (length(tensor.op.args[1].data) * loss)
+	end
+
+	# binary crossentropy
+	function inner_binary_crossentropy(a::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}})
+		# Clip predictions to prevent log(0)
+		a_clipped = clamp.(a.data, 1e-7, 1 - 1e-7)
+		
+		# Binary crossentropy loss formula
+		sample_losses = -(y_true .* log.(a_clipped) + (1 .- y_true) .* log.(1 .- a_clipped))
+		mean_loss = mean(sample_losses)
+		out = [mean_loss]
+		
+		# Calculate gradient
+		a.grad = -(y_true ./ a_clipped .- (1 .- y_true) ./ (1 .- a_clipped)) ./ length(y_true)
+		
+		out = reshape(out, (1, 1))
+		return Tensor(out, zeros(Float64, size(out)), Operation(binary_crossentropy, (a, y_true)))
+	end
+
+	function binary_crossentropy()
+		return Loss(inner_binary_crossentropy)
+	end
+
+	# backprop in case of `binary_crossentropy`
+	function Tensors.backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(binary_crossentropy), ArgTypes}
+		# It should do nothing, backprop is implemented within the binary_crossentropy function
 	end
 
 

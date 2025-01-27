@@ -60,11 +60,22 @@ module NeuralNetworks
 			Y_batch = Y_train[i:batch_end]
 
 			# Adjust the size of Y_batch_encoded dynamically for the last batch
-			batch_size_actual = size(X_batch, 1)  # Actual batch size
-			Y_batch_encoded = zeros(batch_size_actual, nn.num_classes)
-			for batch_index in 1:batch_size_actual
-				Y_batch_encoded[batch_index, Int(Y_batch[batch_index]) + 1] = 1
+			batch_size_actual = size(X_batch, 1)
+			if nn.num_classes == 1
+				# Per binary crossentropy
+				Y_batch_encoded = reshape(Y_batch, :, 1)
+			else
+				# Per softmax crossentropy
+				Y_batch_encoded = zeros(batch_size_actual, nn.num_classes)
+				for batch_index in 1:batch_size_actual
+					class_index = Int(Y_batch[batch_index]) + 1
+					if class_index > nn.num_classes || class_index < 1
+						error("Classe non valida: $(Y_batch[batch_index]) per num_classes=$(nn.num_classes)")
+					end
+					Y_batch_encoded[batch_index, class_index] = 1
+				end
 			end
+
 
 			# Reset gradients
 			for layer in nn.layers

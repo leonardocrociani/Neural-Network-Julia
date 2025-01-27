@@ -33,16 +33,33 @@ Y_test = convert(Vector{Int}, Y_test)
 weight_init = random_initializer(42)
 bias_init = zeros_initializer()
 activation_functions = [Activations.tanh(), Activations.identity()]
-loss = softmax_crossentropy()
+loss = binary_crossentropy()
 regularization = momentum_tikhonov()
+
+# mutable struct NeuralNetwork
+#     η::Number
+#     α::Number
+#     batch_sz::Number
+#     epochs::Number
+#     num_classes::Number
+#     layers::AbstractArray{Tensor, 1}
+#     biases::AbstractArray{Tensor, 1}
+#     activation_functions::AbstractArray{Activation, 1}
+#     loss::Loss
+#     regularization::MomentumFunction
+#     Δw_old::Vector{Matrix{Float64}}
+
+println("Valori unici in Y_train: ", unique(Y_train))
+println("Valori unici in Y_test: ", unique(Y_test))
+
 
 nn_prototype = NeuralNetwork(
     0.3,
     0.2,
     100,
     3,
-    2,
-    [(6, 100), (100, 2)],
+    1, # num_classes
+    [(6, 100), (100, 1)],
     weight_init,
     bias_init,
     activation_functions,
