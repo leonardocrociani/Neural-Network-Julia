@@ -62,7 +62,7 @@ module DataLoader
     end
 
 
-    function load_cup_data(filename::String) 
+    function load_cup_data(filename::String; test_set::Bool=false) 
         X = []
         Y = []
 
@@ -83,16 +83,23 @@ module DataLoader
                     continue
                 end
 
+                if test_set
+                    x = parse.(Float64, line[2:end])
+                    push!(X, x)
+                    continue
+                end
+
                 # last 3 columns are the target
                 x = parse.(Float64, line[2:end-3])
                 y = parse.(Float64, line[end-2:end])
 
-                println(y)
-                println(x)
-
                 push!(X, x)
                 push!(Y, y)
             end
+        end
+
+        if test_set
+            return X
         end
 
         return X, Y
