@@ -4,7 +4,7 @@ module Activations
 	using FunctionWrappers
 	export Activation
 	using ..Tensors
-	export tanh, relu, identity
+	export tanh, identity
 
 	mutable struct Activation <: Function
 		func::FunctionWrappers.FunctionWrapper{Tensor, Tuple{Tensor}}
@@ -40,20 +40,6 @@ module Activations
 		input_tensor.grad += (1 .- tensor.data .^ 2) .* tensor.grad
 	end
 
-	# relu function
-	function inner_relu(a::Tensor)
-		return Tensor(max.(0,a.data), zeros(Float64, size(a.data)), Operation(relu, (a,)))
-	end
-
-	function relu()
-		return Activation(relu)
-	end
-
-	# relu backpropagation
-	function Tensors.backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(relu), ArgTypes}
-		tensor.op.args[1].grad += (tensor.op.args[1].data .> 0) .* tensor.grad
-	end
-
 	# identity function
 	function inner_identity(tensor::Tensor)
 		return tensor
@@ -67,25 +53,44 @@ module Activations
 	function Tensors.backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(identity), ArgTypes}
 	end
 
-	function sigmoid(x)
-        return 1 / (1 + exp(-x))
-    end
+	relu(x) = max(0, x)
 
-    # Then use it in inner_sigmoid
-    function inner_sigmoid(a::Tensor)
-        out_data = 1 ./(1 .+ exp.(-a.data))
-        return Tensor(out_data, zeros(Float64, size(out_data)), Operation(sigmoid, (a,)))
-    end
+	function inner_relu(a::Tensor)
+		# Calculate ReLU function
+		out_data = max.(0, a.data)
+		# Create new Tensor
+		return Tensor(out_data, zeros(Float64, size(out_data)), Operation(relu, (a,)))
+	end
 
-    function Activations.sigmoid()
-        return Activation(inner_sigmoid)
-    end
+	function Activations.relu()
+		return Activation(inner_relu)
+	end
 
-    # sigmoid backpropagation
-    function Tensors.backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(sigmoid), ArgTypes}
-        input_tensor = tensor.op.args[1]
-        input_tensor.grad += tensor.data .* (1 .- tensor.data) .* tensor.grad
-    end
+	# relu backpropagation
+	function Tensors.backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(relu), ArgTypes}
+		# Derivative of ReLU: 1 if x > 0, 0 otherwise
+		input_tensor = tensor.op.args[1]
+		input_tensor.grad += (tensor.data .> 0) .* tensor.grad
+	end
 
+	# Define sigmoid function
+	sigmoid(x) = 1 / (1 + exp(-x))
 
+	function inner_sigmoid(a::Tensor)
+		# Calculate sigmoid function
+		out_data = sigmoid.(a.data)
+		# Create new Tensor
+		return Tensor(out_data, zeros(Float64, size(out_data)), Operation(sigmoid, (a,)))
+	end
+
+	function Activations.sigmoid()
+		return Activation(inner_sigmoid)
+	end
+
+	# sigmoid backpropagation
+	function Tensors.backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(sigmoid), ArgTypes}
+		# Derivative of sigmoid: σ(x)(1 - σ(x))
+		input_tensor = tensor.op.args[1]
+		input_tensor.grad += tensor.data .* (1 .- tensor.data) .* tensor.grad
+	end
 end

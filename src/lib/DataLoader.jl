@@ -40,6 +40,7 @@ module DataLoader
 				
 				x = parse.(Int, line[2:end])
 				y = parse(Int, line[1])
+
 				push!(X_train, x)
 				push!(Y_train, y)
 			end
@@ -65,7 +66,7 @@ module DataLoader
 
 		println("Loading data...")
 
-		return X_train, onehot_encode(Y_train, 2), X_test, onehot_encode(Y_test, 2)
+		return X_train, Y_train, X_test, Y_test
 	end
 
 

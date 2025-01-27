@@ -1,5 +1,6 @@
 # Include the dependencies
 include("../src/lib/Tensor.jl")
+include("../src/lib/Regularization.jl")
 include("../src/lib/Initializer.jl")
 include("../src/lib/Loss.jl")
 include("../src/lib/Activation.jl")
@@ -51,7 +52,7 @@ function load_mnist_data(base_path::String)
     return X_train, Y_train, X_val, Y_val
 end
 
-    base_path = "../../dataset/trainingSet/trainingSet"
+    base_path = "./dataset/mnist/trainingSet/trainingSet"
 
     X_train, Y_train, X_val, Y_val = load_mnist_data(base_path)
 
