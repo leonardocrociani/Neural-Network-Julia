@@ -2,7 +2,7 @@ module DataLoader
 
     using DelimitedFiles
 
-    export load_monks_data, load_cup_data   
+    export load_monks_data, load_cup_data, save_cup_results
 
     function load_monks_data(train_files::Vector{String}, test_files::Vector{String})
 
@@ -103,6 +103,26 @@ module DataLoader
         end
 
         return X, Y
+    end
+
+
+    function save_cup_results(Y_pred::Array{Array{Float64, 1}, 1})
+        @assert length(Y_pred) == 500
+        @assert all([length(y) == 3 for y in Y_pred])
+
+        ln1 = "# Giovanni Braccini, Leonardo Crociani, Giacomo Trapani\n"
+        ln1 = ln1 * "# JTeam\n" 
+        ln1 = ln1 * "# ML-CUP24 V1\n"
+        ln1 = ln1 * "# 29/01/2025\n"
+
+        for i in 1:length(Y_pred)
+            y = Y_pred[i]
+            ln1 = ln1 * string(i) * "," * string(y[1]) * "," * string(y[2]) * "," * string(y[3]) * "\n"
+        end
+
+        open("../outputs/ML_CUP_24_TS_results.csv", "w") do file
+            write(file, ln1)
+        end
     end
 
 end
