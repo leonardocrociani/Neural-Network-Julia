@@ -1,5 +1,8 @@
 module NeuralNetworks
 
+	using Random
+	using Statistics
+
 	using ..Tensors
 	using ..Initializers
 	using ..Losses
@@ -54,6 +57,7 @@ module NeuralNetworks
 	function train(nn::NeuralNetwork, X_train::Matrix{<:Number}, Y_train::AbstractArray{<:Any};
 		verbose::Bool=false)
 		run = 0
+		err::Float64 = Inf
 		for epoch in 1:nn.epochs
 			for i in 1:nn.batch_sz:size(X_train, 1)
 				# Adjusted the batch range to avoid out-of-bounds errors
@@ -91,6 +95,7 @@ module NeuralNetworks
 				# Compute loss and perform backpropagation
 				loss = nn.loss(layer, Y_batch_encoded)
 				nn.regularization(loss, nn.layers, nn.Δw_old, nn.η, nn.α)
+				err = loss.data[1]
 
 				# Print verbose output
 				if verbose && run % 10 == 0
@@ -99,6 +104,27 @@ module NeuralNetworks
 				run += 1
 			end
 		end
+		return err
+	end
+
+	function evaluate(nn::NeuralNetwork, X_test::Matrix{<:Number}, Y_test::AbstractArray{<:Any}, score::Score)
+		correct = 0
+		total = 0
+		for i in axes(Y_test, 1)
+			X_in = X_test[i:i,:]
+			X_in = Tensor(X_in)
+			Y_true = Y_test[i]
+			layer = nn.activation_functions[1](X_in * nn.layers[1] + nn.biases[1])
+			for i in 2:size(nn.layers, 1)
+				layer = nn.activation_functions[i](layer * nn.layers[i] + nn.biases[i])
+			end
+			#println("($(layer.data) : $(argmax(layer.data, dims=2)[1][2] - 1) vs $(Int(Y_true)))")
+			if score(layer, Y_true)
+				correct += 1
+			end
+			total += 1
+		end
+		return correct / total
 	end
 
 	function grid_search(η::AbstractArray{<:Number}, α::AbstractArray{<:Number}, batch_sz::AbstractArray{<:Int64},
@@ -138,34 +164,47 @@ module NeuralNetworks
 					loss,
 					regularization_function
 			)
-			train(nn_prototype, X_train, Y_train)
-			correct = 0
-			total = 0
-			for i in axes(Y_test, 1)
-					X_in = X_test[i:i,:]
-					X_in = Tensor(X_in)
-					Y_true = Y_test[i]
-					layer = nn_prototype.activation_functions[1](X_in * nn_prototype.layers[1] + nn_prototype.biases[1])
-					for i in 2:size(nn_prototype.layers, 1)
-						layer = nn_prototype.activation_functions[i](layer * nn_prototype.layers[i] + nn_prototype.biases[i])
-					end
-					# println("$(layer.data) : $(argmax(layer.data, dims=2)[1][2] - 1) vs $(Int(Y_true))")
-					if score(layer, Y_true)
-						correct += 1
-					end
-					total += 1
-			end
+			err_scores = k_fold_cross_validation(nn_prototype, X_train, Y_train, score)
+			valuation = evaluate(nn_prototype, X_test, Y_test, score)
 			if verbose
-				println(" $(correct/total)%")
+				println(" $(valuation)% [avg err $(mean(err_scores))]")
 			end
-			if correct/total > best_score
-				best_score = correct/total
+			if valuation > best_score
+				best_score = valuation
 				best_params = (a, b, c, d)
 			end
 		end
 
 		return (nn, best_score, best_params)
 
+	end
+
+	function k_fold_cross_validation(nn::NeuralNetwork, X::Matrix{<:Number}, Y::AbstractArray{<:Any}, score::Score, k=5)
+		n = length(Y)
+		fold_size = div(n, k)
+		indices = shuffle(1:n)  # Shuffle indices to randomize folds
+		err_scores = []
+	
+		for i in 1:k
+			# Split data into training and validation sets
+			val_start = (i-1) * fold_size + 1
+			val_end = i == k ? n : i * div(n, k)
+
+			val_indices = indices[val_start:val_end]
+			train_indices = setdiff(1:n, val_indices)
+	
+			X_train, y_train = X[train_indices, :], Y[train_indices]
+			X_val, y_val = X[val_indices, :], Y[val_indices]
+	
+			# Train the model
+			train(nn, X_train, y_train)
+			err = evaluate(nn, X_val, y_val, score)
+
+
+			push!(err_scores, err)
+		end
+	
+		return err_scores
 	end
 
 end
