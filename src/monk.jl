@@ -32,52 +32,43 @@ Y_test = convert(Vector{Int}, Y_test)
 
 weight_init = random_initializer(42)
 bias_init = zeros_initializer()
-activation_functions = [Activations.tanh(), Activations.identity()]
-loss = binary_crossentropy()
+
+loss = mse()
 regularization = momentum_tikhonov()
-
-# mutable struct NeuralNetwork
-#     η::Number
-#     α::Number
-#     batch_sz::Number
-#     epochs::Number
-#     num_classes::Number
-#     layers::AbstractArray{Tensor, 1}
-#     biases::AbstractArray{Tensor, 1}
-#     activation_functions::AbstractArray{Activation, 1}
-#     loss::Loss
-#     regularization::MomentumFunction
-#     Δw_old::Vector{Matrix{Float64}}
-
-println("Valori unici in Y_train: ", unique(Y_train))
-println("Valori unici in Y_test: ", unique(Y_test))
-
-
-nn_prototype = NeuralNetwork(
-    0.3,
-    0.2,
-    100,
-    3,
-    1, # num_classes
-    [(6, 2), (2, 1)],
+# Training the neural network with adjusted parameters
+nn = NeuralNetwork(
+    0.01,            # Increased learning rate
+    0.9,             # Increased momentum (α)
+    32,              # Larger batch size
+    200,             # Increased epochs for more learning
+    1,               # num_classes
+    [(6, 4), (4, 1)], # More complex network architecture
     weight_init,
     bias_init,
-    activation_functions,
-    loss,
+    [Activations.tanh(), Activations.sigmoid()], # Use sigmoid for output layer
+    cross_entropy(), # Changed loss to cross-entropy for binary classification
     regularization
 )
 
-grid_params = Dict(
-    :η => [0.01, 0.05, 0.1],
-    :α => [0.001, 0.01, 0.05],
-    :batch_sz => [50, 100, 200],
-    :epochs => [2, 3]
-)
+# Training the neural network
+train(nn, X_train, Y_train, verbose=true)
 
-println("\nRunning Grid Search...")
-best_grid_params, best_grid_score = grid_search(
-    nn_prototype, X_train, Y_train, grid_params; X_val=X_test, Y_val=Y_test
-)
+correct = 0
+total = 0
+for i in eachindex(Y_test)
+    X_in = X_test[i:i,:]
+    X_in = Tensor(X_in)
+    Y_true = Y_test[i]
+    layer = nn.activation_functions[1](X_in * nn.layers[1] + nn.biases[1])
+    for i in 2:size(nn.layers, 1)
+        layer = nn.activation_functions[i](layer * nn.layers[i] + nn.biases[i])
+    end
+    prediction = (layer.data[1] >= 0.5) ? 1 : 0
+    println("output ", layer.data[1], " ", prediction, " ", Y_true)
+    if prediction == Y_true # -1 because digits start at 0
+        global correct +=1
+    end
+    global total += 1
+end
 
-println("Best Grid Search Parameters: $best_grid_params")
-println("Best Grid Search Accuracy: $best_grid_score")
+println("accuracy: $(correct/total)")

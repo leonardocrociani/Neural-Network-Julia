@@ -6,7 +6,7 @@ module Losses
 
 	export Loss
 	using ..Tensors
-	export softmax_crossentropy, binary_crossentropy, mse, mean_euclidean_error, rmse # losses
+	export softmax_crossentropy, cross_entropy, mse, mean_euclidean_error, rmse # losses
 
 	mutable struct Loss <: Function
 		func::FunctionWrappers.FunctionWrapper{Tensor, Tuple{Tensor, Union{Array{Int, 2}, Array{Float64,2}}}}
@@ -132,30 +132,31 @@ module Losses
 		# tensor.op.args[1].grad += (tensor.op.args[1].data .- tensor.op.args[2]) / (length(tensor.op.args[1].data) * loss)
 	end
 
-	# binary crossentropy
-	function inner_binary_crossentropy(a::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}})
-		# Clip predictions to prevent log(0)
-		a_clipped = clamp.(a.data, 1e-7, 1 - 1e-7)
+	# cross entropy without softmax
+	function inner_cross_entropy(a::Tensor, y_true::Union{Array{Int, 2}, Array{Float64,2}})
+		# Clip predictions to prevent numerical instability
+		a_clipped = clamp.(a.data, 1e-7, 1-1e-7)
 		
-		# Binary crossentropy loss formula
-		sample_losses = -(y_true .* log.(a_clipped) + (1 .- y_true) .* log.(1 .- a_clipped))
-		mean_loss = mean(sample_losses)
-		out = [mean_loss]
+		# Calculate cross entropy loss: -Σ y_true * log(pred)
+		sample_losses = -sum(y_true .* log.(a_clipped), dims=2)
 		
-		# Calculate gradient
-		a.grad = -(y_true ./ a_clipped .- (1 .- y_true) ./ (1 .- a_clipped)) ./ length(y_true)
+		# Mean loss across the batch
+		out = [mean(sample_losses)]
+		
+		# Calculate gradient: -y_true / pred
+		a.grad = -y_true ./ a_clipped ./ size(y_true, 1)
 		
 		out = reshape(out, (1, 1))
-		return Tensor(out, zeros(Float64, size(out)), Operation(binary_crossentropy, (a, y_true)))
+		return Tensor(out, zeros(Float64, size(out)), Operation(cross_entropy, (a,)))
 	end
 
-	function binary_crossentropy()
-		return Loss(inner_binary_crossentropy)
+	function cross_entropy()
+		return Loss(inner_cross_entropy)
 	end
 
-	# backprop in case of `binary_crossentropy`
-	function Tensors.backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(binary_crossentropy), ArgTypes}
-		# It should do nothing, backprop is implemented within the binary_crossentropy function
+	# backprop for cross_entropy
+	function Tensors.backprop!(tensor::Tensor{Operation{FunType, ArgTypes}}) where {FunType<:typeof(cross_entropy), ArgTypes}
+		# Backprop is handled in the inner_cross_entropy function
 	end
 
 
