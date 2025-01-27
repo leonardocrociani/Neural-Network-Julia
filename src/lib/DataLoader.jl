@@ -2,7 +2,7 @@ module DataLoader
 
     using DelimitedFiles
 
-    export load_monks_data
+    export load_monks_data, load_cup_data   
 
     function load_monks_data(train_files::Vector{String}, test_files::Vector{String})
 
@@ -60,4 +60,42 @@ module DataLoader
 
         return X_train, Y_train, X_test, Y_test
     end
+
+
+    function load_cup_data(filename::String) 
+        X = []
+        Y = []
+
+        first_line = false
+
+        open(filename) do file
+            for line in eachline(file)
+
+                if !first_line
+                    first_line = true
+                    continue
+                end
+
+                line = strip(line)
+                line = split(line, ",")
+
+                if length(line) <= 1
+                    continue
+                end
+
+                # last 3 columns are the target
+                x = parse.(Float64, line[2:end-3])
+                y = parse.(Float64, line[end-2:end])
+
+                println(y)
+                println(x)
+
+                push!(X, x)
+                push!(Y, y)
+            end
+        end
+
+        return X, Y
+    end
+
 end
