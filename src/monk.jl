@@ -19,7 +19,7 @@ using .DataLoader
 vector_train_files = ["../dataset/monks/monks-1.train", "../dataset/monks/monks-2.train", "../dataset/monks/monks-3.train"]
 vector_test_files = ["../dataset/monks/monks-1.test", "../dataset/monks/monks-2.test", "../dataset/monks/monks-3.test"]
 
-X_train, Y_train, X_test, Y_test = load_monks_data(vector_train_files, vector_test_files)
+X_train, Y_train, X_test, Y_test = load_monks_data(vector_train_files[1], vector_test_files[1]) # il primo task: monks-1
 
 X_train = hcat(X_train...)
 X_train = convert(Matrix{Float64}, X_train')
@@ -59,7 +59,7 @@ nn_prototype = NeuralNetwork(
     100,
     3,
     1, # num_classes
-    [(6, 100), (100, 1)],
+    [(6, 2), (2, 1)],
     weight_init,
     bias_init,
     activation_functions,
