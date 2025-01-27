@@ -93,17 +93,7 @@ module NeuralNetworks
 
 			# Compute loss and perform backpropagation
 			loss = nn.loss(layer, Y_batch_encoded)
-			# nn.regularization(loss, nn.layers, nn.Δw_old, nn.η, nn.α)
-			println(loss.data)
-			backward(loss)
-			println(loss.grad)
-			println(loss.op)
-			 for i in eachindex(nn.layers)
-				layer = nn.layers[i]
-				Δw_new = layer.grad .* nn.η - nn.α .* nn.Δw_old[i]
-				nn.Δw_old[i] = Δw_new
-				layer.data = layer.data - Δw_new
-			end
+			nn.regularization(loss, nn.layers, nn.Δw_old, nn.η, nn.α)
 
 			# Print verbose output
 			if verbose && run % 10 == 0
