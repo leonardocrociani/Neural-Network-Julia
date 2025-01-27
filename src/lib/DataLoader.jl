@@ -4,75 +4,44 @@ module DataLoader
 
 	export load_monks_data, load_cup_data, save_cup_results
 
-	function onehot_encode(y_true::Vector{Int64}, num_classes::Int)
-		# Initialize a matrix of zeros with size (num_samples, num_classes)
-		num_samples = length(y_true)
-		y_onehot = zeros(Int, num_samples, num_classes)
-
-		# Set the appropriate indices to 1
-		for (i, class_idx) in enumerate(y_true)
-				y_onehot[i, class_idx + 1] = 1  # +1 because Julia uses 1-based indexing
+	function encode_monk(data::Vector{Int64})
+		max_values = [3,3,2,3,4,2]
+		encoded_inputs = []
+		for i in eachindex(data)
+			for j in range(1, max_values[i])
+				if j + 1 == data[i]
+					push!(encoded_inputs, 1)
+				else
+					push!(encoded_inputs, 0)
+				end
+			end
 		end
-
-		return y_onehot
+		return encoded_inputs
 	end
 
-	function load_monks_data(train_file::String, test_file::String)
-
-		X_train = []
-		Y_train = Int[]
-
-		X_test = []
-		Y_test = Int[]
-
-		# training
-		# read line by line
-		open(train_file) do file
+	function load_monks_data(file_path::String)
+		dataset = []
+		open(file_path) do file
 			for line in eachline(file)
-				line = strip(line)
-				line = split(line, " ")
-
-				if length(line) <= 1
+				words_list = split(strip(line), " ")
+				if length(words_list) <= 1
 					continue
 				end
-
-				pop!(line) # last is the identifier
-				
-				x = parse.(Int, line[2:end])
-				y = parse(Int, line[1])
-
-				push!(X_train, x)
-				push!(Y_train, y)
+				id = words_list[8]
+				output_class = parse(Int64, words_list[1])
+				inputs = parse.(Int64, words_list[2 : 7])
+				inputs = encode_monk(inputs)
+				push!(dataset, (id, inputs, output_class))
 			end
 		end
 
-		open(test_file) do file
-			for line in eachline(file)
-				line = strip(line)
-				line = split(line, " ")
-
-				if length(line) <= 1
-					continue
-				end
-
-				pop!(line) # last is the identifier
-				
-				x = parse.(Int, line[2:end])
-				y = parse(Int, line[1])
-				push!(X_test, x)
-				push!(Y_test, y)
-			end
-		end
-
-		println("Loading data...")
-
-		return X_train, Y_train, X_test, Y_test
+		return dataset
 	end
 
 
 	function load_cup_data(filename::String; test_set::Bool=false) 
-		X = []
-		Y = []
+		X = Float64[]
+		Y = Float64[]
 
 		first_line = false
 
