@@ -5,9 +5,11 @@ module NeuralNetworks
 	using ..Losses
 	using ..Activations
 	using ..Regularizations
+	using ..Scores
 
 	export NeuralNetwork
 	export train
+	export grid_search
 
 	mutable struct NeuralNetwork
 		η::Number # learning rate
@@ -53,19 +55,15 @@ module NeuralNetworks
 		verbose::Bool=false)
 		run = 0
 		for epoch in 1:nn.epochs
-		for i in 1:nn.batch_sz:size(X_train, 1)
-			# Adjusted the batch range to avoid out-of-bounds errors
-			batch_end = min(i + nn.batch_sz - 1, size(X_train, 1))
-			X_batch = Tensor(X_train[i:batch_end, :])
-			Y_batch = Y_train[i:batch_end]
+			for i in 1:nn.batch_sz:size(X_train, 1)
+				# Adjusted the batch range to avoid out-of-bounds errors
+				batch_end = min(i + nn.batch_sz - 1, size(X_train, 1))
+				X_batch = Tensor(X_train[i:batch_end, :])
+				Y_batch = Y_train[i:batch_end]
 
-			# Adjust the size of Y_batch_encoded dynamically for the last batch
-			batch_size_actual = size(X_batch, 1)
-			if nn.num_classes == 1
-				# Per binary crossentropy
-				Y_batch_encoded = reshape(Y_batch, :, 1)
-			else
-				# Per softmax crossentropy
+				# Adjust the size of Y_batch_encoded dynamically for the last batch
+				batch_size_actual = size(X_batch, 1)
+
 				Y_batch_encoded = zeros(batch_size_actual, nn.num_classes)
 				for batch_index in 1:batch_size_actual
 					class_index = Int(Y_batch[batch_index]) + 1
@@ -74,34 +72,100 @@ module NeuralNetworks
 					end
 					Y_batch_encoded[batch_index, class_index] = 1
 				end
-			end
 
 
-			# Reset gradients
-			for layer in nn.layers
-				layer.grad .= 0
-			end
-			for bias in nn.biases
-				bias.grad .= 0
-			end
+				# Reset gradients
+				for layer in nn.layers
+					layer.grad .= 0
+				end
+				for bias in nn.biases
+					bias.grad .= 0
+				end
 
-			# Forward pass
-			layer = nn.activation_functions[1](X_batch * nn.layers[1] + nn.biases[1])
-			for j in 2:size(nn.layers, 1)
-				layer = nn.activation_functions[j](layer * nn.layers[j] + nn.biases[j])
-			end
+				# Forward pass
+				layer = nn.activation_functions[1](X_batch * nn.layers[1] + nn.biases[1])
+				for j in 2:size(nn.layers, 1)
+					layer = nn.activation_functions[j](layer * nn.layers[j] + nn.biases[j])
+				end
 
-			# Compute loss and perform backpropagation
-			loss = nn.loss(layer, Y_batch_encoded)
-			nn.regularization(loss, nn.layers, nn.Δw_old, nn.η, nn.α)
+				# Compute loss and perform backpropagation
+				loss = nn.loss(layer, Y_batch_encoded)
+				nn.regularization(loss, nn.layers, nn.Δw_old, nn.η, nn.α)
 
-			# Print verbose output
-			if verbose && run % 10 == 0
-				println("[$(epoch)/$(nn.epochs)] Loss: $(loss.data[1])")
+				# Print verbose output
+				if verbose && run % 10 == 0
+					println("[$(epoch)/$(nn.epochs)] Loss: $(loss.data[1])")
+				end
+				run += 1
 			end
-			run += 1
 		end
+	end
+
+	function grid_search(η::AbstractArray{<:Number}, α::AbstractArray{<:Number}, batch_sz::AbstractArray{<:Int64},
+			epochs::AbstractArray{<:Int64}, layer_sizes::AbstractArray{<:Tuple{<:Number, <:Number}}, initialize_weights_function::Initializer, initialize_biases_function::Initializer,
+			activation_functions::AbstractArray{Activation, 1}, loss::Loss, regularization_function::MomentumFunction,
+			X_train::Matrix{<:Number}, Y_train::AbstractArray{<:Any}, X_test::Matrix{<:Number}, Y_test::AbstractArray{<:Any},
+			score::Score; verbose::Bool=false)
+		
+		grid_params = Dict(
+			:η => η,
+			:α => α,
+			:batch_sz => batch_sz,
+			:epochs => epochs
+		)
+
+		keys_order = (:η, :α, :batch_sz, :epochs)
+		combinations = Iterators.product([grid_params[k] for k in keys_order]...)
+		best_score = -Inf
+		best_params = nothing
+		nn = nothing
+
+		for (a, b, c, d) in combinations
+			# Extract the values for each parameter
+			if verbose
+				print("η: $(a), α: $(b), batch_size: $(c), epochs: $(d)...")
+			end
+			nn_prototype = NeuralNetwork(
+					a,
+					b,
+					c,
+					d,
+					2, # num_classes
+					layer_sizes,
+					initialize_weights_function,
+					initialize_biases_function,
+					activation_functions,
+					loss,
+					regularization_function
+			)
+			train(nn_prototype, X_train, Y_train)
+			correct = 0
+			total = 0
+			for i in axes(Y_test, 1)
+					X_in = X_test[i:i,:]
+					X_in = Tensor(X_in)
+					Y_true = Y_test[i]
+					layer = nn_prototype.activation_functions[1](X_in * nn_prototype.layers[1] + nn_prototype.biases[1])
+					for i in 2:size(nn_prototype.layers, 1)
+						layer = nn_prototype.activation_functions[i](layer * nn_prototype.layers[i] + nn_prototype.biases[i])
+					end
+					# println("$(layer.data) : $(argmax(layer.data, dims=2)[1][2] - 1) vs $(Int(Y_true))")
+					if score(layer, Y_true)
+						correct += 1
+					end
+					total += 1
+			end
+			if verbose
+				println(" $(correct/total)%")
+			end
+			if correct/total > best_score
+				best_score = correct/total
+				best_params = (a, b, c, d)
+			end
 		end
+
+		return (nn, best_score, best_params)
+
 	end
 
 end
