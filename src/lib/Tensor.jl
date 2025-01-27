@@ -23,6 +23,7 @@ module Tensors
 	# now the constructors
 	# Tensors are defined as:
 	Tensor(x::Array{Float64, 2}) = Tensor(x, zeros(Float64, size(x)), nothing) # grad is an array of zeros for now, op is nothing by definition
+	Tensor(x::Array{Int64, 2}) = Tensor(Float64.(x), zeros(Float64, size(x)), nothing) # grad is an array of zeros for now, op is nothing by definition
 
 	# We can also create tensors from row or column vectors
 	# `column_vector` is an optional parameter, it is toggled on if x is a column vector
